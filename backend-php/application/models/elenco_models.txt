@@ -1,0 +1,8 @@
+user.php
+verifyLogin.php
+personale.php
+palestra.php
+recapiti_telefonici.php
+socio.php
+abbonamenti.php
+motivazioni.php

@@ -1,0 +1,78 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Hello_model extends CI_Model {
+	
+	private $user_table = 'pesonale_palestre';
+	
+	public function controlloCredenziali($user, $password) {
+		
+		$password = md5($password);
+		
+		$query = "SELECT id, privilegi FROM ".$this->user_table." WHERE username=? AND password=? ";
+		$result = $this->db->query($query, array($user, $password));
+		
+		if ($query->num_rows() == 1) {
+			// password and user are correct
+			return $this->generateCredentials($user, $password, time()); //true: success, false: failed
+		} else {
+			return false;
+		}
+	}
+	
+	public function checkCredentials($password_plus_user_plus_time_hash, $time_create) {
+		$time_now = time();
+		$absolute_time = $time_now-$time_create;
+		if( $absolute_time < self::TIME_EXPIRE ) {
+			
+			$password_system_plus_user_system_plus_time_create = $this->password.$this->username.$time_create;
+			
+			if(crypt($password_system_plus_user_system_plus_time_create, $password_plus_user_plus_time_hash) == $password_plus_user_plus_time_hash) {
+				return true;
+			} else {
+				$this->resetSession();
+				session_destroy();
+				return false;
+			}
+		} else {
+			$this->resetSession();
+			session_destroy();
+			return false;	// id &/or code wrong
+		}
+		
+	}
+	
+	/* PRIVATE FUNCTIONS */
+	
+	/* GENERATE ID AND CODE, INSERT THEM IN DB, CREATE SESSION AND COOKIE WITH ID & CODE */
+	private function generateCredentials($user, $password, $time) {
+		// CREATE SESSION WITH user_plus_time_hash, password_plus_time_hash, time
+		$time_create = time();
+		
+		$password_plus_user_plus_time = $password.$user.$time_create;
+		$total_hash = $this->better_crypt($password_plus_user_plus_time, $this->round_crypt);
+		
+		$random_fake_hash = $this->better_crypt($this->randomString(25), $this->round_crypt);
+		
+		$this->session->set_userdata(array(
+										'meteo' => $total_hash, 
+										'polca' => $random_fake_hash, 
+										'tassa' => $time_create
+			));		//HASH user+password+time //HASH random //time
+			
+		
+		return true;		
+	}
+	
+	/* CRYPT PASSWORD */
+	private function better_crypt($input, $rounds = 7) {
+		$salt = "";
+		$salt_chars = array_merge(range('A','Z'), range('a','z'), range(0,9));
+		for($i=0; $i < 22; $i++) {
+			$salt .= $salt_chars[array_rand($salt_chars)];
+		}
+		return crypt($input, sprintf('$2a$%02d$', $rounds) . $salt);
+	}
+}
+
+?>

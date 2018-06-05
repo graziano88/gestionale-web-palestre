@@ -1,0 +1,192 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+//we need to call PHP's session object to access it through CI
+class GestioneVariabili extends CI_Controller {
+ 
+	function __construct() {
+		parent::__construct();
+		
+		/* MODEL SEMPRE NECESSARI */
+		$this->load->model('user','',TRUE);
+		
+		/* MODEL NECESSARI ALL'HEADER_MODEL */
+		$this->load->model('personale');
+		$this->load->model('palestra');
+		$this->load->model('HeaderModel', 'header_model');
+		$this->load->model('sistema');
+		
+		/* MODEL NECESSARI IN QUESTO CONTROLLER */
+		$this->load->model('socio');
+		$this->load->model('abbonamenti');
+		$this->load->model('recapitiTelefonici', 'recapiti_telefonici');
+		$this->load->model('utility');
+		
+		/* LIBRERIE AGGIUNTIVE */
+		// NESSUNA		
+		
+		/* COSTANTI NECESSARIE IN QUESTO CONTROLLER */
+		define('CURRENT_PAGE', 'gestionevariabili');
+		
+	}
+	
+	
+	/* AREA PARAMETRI */
+	function parametriPalestra() {
+		
+		if( $this->user->controlloAutenticazione() ) {
+			// AREA AUTENTICATA
+			
+			$controller_redirect = 'gestionevariabili/sogliaMissedDesk';
+			$title = 'Soglia Missed Desk';
+			
+			$header = $this->header_model->getHeader($title, $controller_redirect);
+			
+			$privilegi = $header['privilegi'];
+			$id_palestra = $header['id_palestra'];
+			
+			if( $privilegi <= 1 ) {	
+				// accesso consetito a SUPERadmin e adminPalestra
+				
+				$palestra = $this->palestra->getPalestra($id_palestra);
+				
+				$soglia = $this->palestra->getSogliaMissedDeskByPalestra($id_palestra);
+				
+				$parametri_palestra = $this->sistema->getParametriSistema();
+				
+				$data_container['soglia'] = $soglia;
+				$data_container['parametri_palestra'] = $parametri_palestra;
+				$data_container['nome_palestra'] = $palestra->nome;
+				
+				$this->load->view('header', $header);
+				$this->load->view('gestione_variabili/show_parametri', $data_container);
+				$this->load->view('footer');
+				
+			} else {
+				redirect('home', 'refresh');
+			}
+		} else {
+			//If no session, redirect to login page
+			$url = 'login/login/'.CURRENT_PAGE;
+			redirect($url, 'refresh');
+		}
+	}
+	
+	/* PARAMETRI PALESTRA */
+	function getFormEditSogliaMissedDesk($id_soglia) {
+		if( $this->user->controlloAutenticazione() ) {
+			// AREA AUTENTICATA
+			
+			$session_login = $this->session->userdata('logged_in');
+			$privilegi = $session_login['ruolo'];
+			
+			if( $privilegi <= 1 ) {	
+				// accesso consetito a SUPERadmin e adminPalestra
+				$soglia = $this->palestra->getSogliaMissedDesk($id_soglia);
+
+				$dati['soglia'] = $soglia;
+
+				$this->load->view('gestione_variabili/form_edit_soglia_missed_desk', $dati);
+			} else {
+				redirect('home', 'refresh');
+			}	
+		} else {
+			//If no session, redirect to login page
+			$url = 'login/login/'.CURRENT_PAGE;
+			redirect($url, 'refresh');
+		}
+	}
+	
+	function editSogliaMissedDesk() {
+		if( $this->user->controlloAutenticazione() ) {
+			// AREA AUTENTICATA
+			
+			$session_login = $this->session->userdata('logged_in');
+			$privilegi = $session_login['ruolo'];
+			
+			if( $privilegi <= 1 ) {	
+				// accesso consetito a SUPERadmin e adminPalestra
+				
+				$post_result = $this->input->post();
+				
+				$update_array = array();
+				
+				$update_array['giorni_primo_alert'] = $post_result['giorni_primo_alert'];
+				$update_array['giorni_secondo_alert'] = $post_result['giorni_secondo_alert'];
+				$update_array['scadenza'] = $post_result['scadenza'];
+				
+				if( $this->palestra->updateSogliaMissedDesk($post_result['id'], $update_array) ) {
+					$this->load->view('gestione_variabili/success_edit_soglia_missed_desk');
+				} else {
+					//ERRORE EDIT SOGLIA
+				}
+				
+			} else {
+				redirect('home', 'refresh');
+			}	
+		} else {
+			//If no session, redirect to login page
+			$url = 'login/login/'.CURRENT_PAGE;
+			redirect($url, 'refresh');
+		}
+	}
+	
+	
+	/* PARAMETRI SISTEMA */
+	function getFormEditParametriSistema($id_parametri_sistema) {
+		if( $this->user->controlloAutenticazione() ) {
+			// AREA AUTENTICATA
+			
+			$session_login = $this->session->userdata('logged_in');
+			$privilegi = $session_login['ruolo'];
+			
+			if( $privilegi == 0 ) {	
+				// accesso consetito a SUPERadmin e adminPalestra
+				$parametri_sistema = $this->sistema->getParametriSistema();
+
+				$dati['parametri_sistema'] = $parametri_sistema;
+
+				$this->load->view('gestione_variabili/form_edit_parametri_sistema', $dati);
+			} else {
+				redirect('home', 'refresh');
+			}	
+		} else {
+			//If no session, redirect to login page
+			$url = 'login/login/'.CURRENT_PAGE;
+			redirect($url, 'refresh');
+		}
+	}
+	
+	function editParametriSistema() {
+		if( $this->user->controlloAutenticazione() ) {
+			// AREA AUTENTICATA
+			
+			$session_login = $this->session->userdata('logged_in');
+			$privilegi = $session_login['ruolo'];
+			
+			if( $privilegi == 0 ) {	
+				// accesso consetito a SUPERadmin e adminPalestra
+				
+				$post_result = $this->input->post();
+				
+				$update_array = array();
+				
+				$update_array['alert_scadenza_palestre'] = $post_result['alert_scadenza_palestre'];
+				
+				if( $this->sistema->updateParametriSistema($post_result['id'], $update_array) ) {
+					$this->load->view('gestione_variabili/success_edit_parametri_sistema');
+				} else {
+					//ERRORE EDIT PARAMETRI SISTEMA
+				}
+				
+			} else {
+				redirect('home', 'refresh');
+			}	
+		} else {
+			//If no session, redirect to login page
+			$url = 'login/login/'.CURRENT_PAGE;
+			redirect($url, 'refresh');
+		}
+	}
+	
+}
+ 
+?>
